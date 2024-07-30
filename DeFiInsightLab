@@ -1,0 +1,88 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+class DeFiInsightLab:
+    def __init__(self):
+        self.api_url = 'https://api.coingecko.com/api/v3'
+
+    def get_defi_projects(self) -> pd.DataFrame:
+        """Fetches a list of DeFi projects."""
+        url = f"{self.api_url}/coins/markets"
+        params = {
+            'vs_currency': 'usd',
+            'category': 'decentralized-finance-defi',
+            'order': 'market_cap_desc',
+            'per_page': 50,
+            'page': 1
+        }
+        response = requests.get(url, params=params)
+        projects = response.json()
+        return pd.DataFrame(projects)
+
+    def get_project_data(self, project_id: str) -> dict:
+        """Fetches data for a specific DeFi project."""
+        url = f"{self.api_url}/coins/{project_id}"
+        response = requests.get(url)
+        return response.json()
+
+    def get_project_tvl(self, project_id: str) -> dict:
+        """Fetches the Total Value Locked (TVL) data for a specific DeFi project."""
+        url = f"{self.api_url}/coins/{project_id}/market_chart"
+        params = {
+            'vs_currency': 'usd',
+            'days': '30'  # You can adjust the number of days for historical data
+        }
+        response = requests.get(url, params=params)
+        return response.json()
+
+    def get_defi_stats(self) -> dict:
+        """Fetches DeFi statistics including TVL."""
+        url = f"{self.api_url}/global"
+        response = requests.get(url)
+        return response.json()['data']
+
+    def plot_tvl_trends(self, project_id: str):
+        """Plots historical TVL trends for a specific DeFi project."""
+        data = self.get_project_tvl(project_id)
+        prices = data['prices']
+        
+        if not prices:
+            print("No TVL data found.")
+            return
+
+        df = pd.DataFrame(prices, columns=['timestamp', 'tvl'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+
+        plt.figure(figsize=(12, 6))
+        df['tvl'].plot()
+        plt.title(f'{project_id.capitalize()} TVL Trend')
+        plt.xlabel('Date')
+        plt.ylabel('Total Value Locked (USD)')
+        plt.grid(True)
+        plt.show()
+
+# Example Usage
+if __name__ == "__main__":
+    defi_insight_lab = DeFiInsightLab()
+
+    # Fetch and Display DeFi Projects
+    defi_projects = defi_insight_lab.get_defi_projects()
+    print("Available DeFi Projects:")
+    print(defi_projects[['id', 'name', 'current_price', 'market_cap']].head())
+
+    # Fetch and Display Project Data
+    project_id = 'uniswap'  # Replace with the project ID of interest
+    project_data = defi_insight_lab.get_project_data(project_id)
+    print(f"Data for project {project_id.capitalize()}:")
+    print(project_data)
+
+    # Fetch and Display DeFi Stats
+    defi_stats = defi_insight_lab.get_defi_stats()
+    print("DeFi Statistics:")
+    print(defi_stats)
+
+    # Plot Historical TVL Trends
+    defi_insight_lab.plot_tvl_trends(project_id=project_id)  # Example project
